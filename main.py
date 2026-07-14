@@ -1,10 +1,10 @@
 import os
-from datetime import datetime
 
 from langchain.agents import create_agent
-from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import InMemorySaver
+
+from tools import TOOLS
 
 # Ollama chat model. Must support tool calling.
 CHAT_MODEL = os.environ.get("CHAT_MODEL", "qwen3.5:0.8b")
@@ -20,40 +20,6 @@ SYSTEM_PROMPT = (
     "If a tool returns an error, explain the error plainly."
 )
 
-# ----- Tools -----
-@tool
-def current_time() -> str:
-    """Return the current local date and time.
-    Use this when the user asks what time or date it is.
-    """
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-@tool
-def word_count(text: str) -> int:
-    """Count the number of words in a piece of text.
-    Use this when the user asks how long a piece of writing is,
-    or asks you to count the words in something they've shared.
-    Returns the word count as an integer.
-    """
-    return len(text.split())
-
-@tool
-def letter_count(text: str) -> dict[str, int]:
-    """Count the number of letters in a piece of text.
-    Use this when user asks how many time each letter in
-    text is occurred.
-    Returns the letter count as dict {<letter>: <count of letter>, ...}
-    """
-    letter_map = {k:0 for k in set(text)}
-    for l in text:
-         letter_map[l] += 1
-    return letter_map
-
-
-TOOLS = [current_time, word_count, letter_count]
-
-
-# ----- Agent -----
 
 def build_agent():
     model = ChatOllama(model=CHAT_MODEL, temperature=0, base_url=OLLAMA_BASE_URL)
@@ -106,6 +72,7 @@ def main():
 
         # Update the count for the next turn.
         prev_message_count = len(result["messages"])
+
 
 if __name__ == "__main__":
     main()
