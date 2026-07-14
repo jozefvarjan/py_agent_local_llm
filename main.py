@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 from langchain.agents import create_agent
@@ -5,7 +6,12 @@ from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import InMemorySaver
 
-CHAT_MODEL = "qwen3.5:0.8b"   # Ollama chat model. Must support tool calling.
+# Ollama chat model. Must support tool calling.
+CHAT_MODEL = os.environ.get("CHAT_MODEL", "qwen3.5:0.8b")
+
+# Base URL of the Ollama server. Override with OLLAMA_BASE_URL when running in a
+# container (e.g. http://host.docker.internal:11434 to reach Ollama on the host).
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
 SYSTEM_PROMPT = (
     "You are a helpful assistant with access to tools for getting the current time and counting words in text. "
@@ -31,14 +37,26 @@ def word_count(text: str) -> int:
     """
     return len(text.split())
 
+@tool
+def letter_count(text: str) -> dict[str, int]:
+    """Count the number of letters in a piece of text.
+    Use this when user asks how many time each letter in
+    text is occurred.
+    Returns the letter count as dict {<letter>: <count of letter>, ...}
+    """
+    letter_map = {k:0 for k in set(text)}
+    for l in text:
+         letter_map[l] += 1
+    return letter_map
 
-TOOLS = [current_time, word_count]
+
+TOOLS = [current_time, word_count, letter_count]
 
 
 # ----- Agent -----
 
 def build_agent():
-    model = ChatOllama(model=CHAT_MODEL, temperature=0)
+    model = ChatOllama(model=CHAT_MODEL, temperature=0, base_url=OLLAMA_BASE_URL)
 
     # InMemorySaver keeps conversation history in memory, keyed by thread ID.
     # When the process exits, the history is gone because of short-term memory.

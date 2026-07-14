@@ -1,0 +1,57 @@
+services:
+  # Ollama server — holds the models and serves the API on port 11434.
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      # Host 11434 is often taken by a local Ollama install, so publish on the
+      # next port up. Left side = host, right side = container (unchanged).
+      # Other services reach Ollama over the compose network on 11434, not this.
+      - "11435:11434"
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      # `ollama list` succeeds only once the server is accepting requests.
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # To use an NVIDIA GPU, uncomment the block below (requires the NVIDIA
+    # Container Toolkit on the host). Without it, Ollama runs on CPU.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # One-shot service that pulls the chat model into the Ollama server, then
+  # exits. The agent waits for this to finish so the model is ready.
+  ollama-pull:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "qwen3.5:0.8b"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+  agent:
+    build: .
+    # The agent reads from stdin (interactive REPL), so keep stdin open and
+    # allocate a TTY. Run with: docker compose run --rm agent
+    stdin_open: true
+    tty: true
+    environment:
+      # Talk to the Ollama service over the compose network.
+      OLLAMA_BASE_URL: http://ollama:11434
+      CHAT_MODEL: qwen3.5:0.8b
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+
+volumes:
+  ollama:
