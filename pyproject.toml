@@ -13,4 +13,6 @@ dependencies = [
 ]
 
 [tool.poe.tasks]
-agent = "uv run main.py"
+agent = "docker compose run --rm agent"
+build = "docker compose run --rm --build agent"
+dev = "uv run main.py"

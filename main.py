@@ -74,5 +74,6 @@ def main():
         prev_message_count = len(result["messages"])
 
 
+
 if __name__ == "__main__":
     main()
